@@ -5,14 +5,19 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import similaritymeasures
 import pandas as pd
+
+from src.preprocessing.preprocess import crop_character_horizontally, crop_character_vertically
+from src.utils.pathtools import logger
+
+
 rcParams['text.usetex'] = True
 
-SYMBOLS_DIR = "isolated_symbols/"
-DATA_DIR = "HMER_latex/data/"
+ALL_CLASSES_FILE = "all_classes.txt"
+DATA_DIR = "data/"
 
-def compute_angles_and_distances(equation, display=False):
+def compute_angles_and_distances(character, display=False):
     # Binarize the image
-    ret, mask = cv2.threshold(equation, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    ret, mask = cv2.threshold(character, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
     # Extract largest blob
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -20,15 +25,16 @@ def compute_angles_and_distances(equation, display=False):
     largest_contour = np.squeeze(largest_contour)
 
     # compute centroid
-    M = cv2.moments(equation)
+    M = cv2.moments(character)
     cX = int(M["m10"] / M["m00"])
     cY = int(M["m01"] / M["m00"])
 
     if display:
         # print character + contour + centroid
-        plt.imshow(equation, cmap="gray")
+        plt.imshow(character, cmap="gray")
         plt.scatter(largest_contour[:,0], largest_contour[:,1], s = 1)
         plt.scatter(cX, cY, c="red")
+        plt.title("Handwritten character with contour and centroid")
         plt.show()
 
     ## compute distance from centroid
@@ -45,21 +51,56 @@ def compute_angles_and_distances(equation, display=False):
     if display:
         # plot distance as a function of contour
         plt.plot(angles, distances)
+        plt.title("Distance of contour to centroid, as a function of angle")
         plt.show()
 
+    return angles, distances
+
 def make_ref_if_not_exists(label):
-    # Write the reference symbol on image
+
+    label = "$" + label + "$"
+    
+    # Find the name of the symbol 
     name = label.replace("$","")
     name = name.replace("\\", "")
-    ref_path = 'HMER_latex/data/references/' + name + '.png'
+    name = name.replace("!", "exclamation")
+    name = name.replace("(", "paropen")
+    name = name.replace(")", "parclose")
+    name = name.replace("+", "plus")
+    name = name.replace(",", "comma")
+    name = name.replace("-", "minus")
+    name = name.replace(".", "point")
+    name = name.replace("/", "slash")
+    name = name.replace("[", "hookopen")
+    name = name.replace("]", "hookclose")
+    name = name.replace("{", "accopen")
+    name = name.replace("}", "accclose")
+    name = name.replace("|", "bar")
+    name = name.replace("=", "equals")
+    name = name.replace(">", "more")
+    name = name.replace("<", "less")
+
+    # modify label name for visualization purpose
+    if "sqrt" in label:
+        label = "$\sqrt{}$"
+
+    ref_path = DATA_DIR + 'references/' + name + '.png'
     if os.path.exists(ref_path):
         return ref_path
     else:
-        fig, ax = plt.subplots(figsize=(1.1,1.1))
+        # Write the reference symbol on image
+        fig, ax = plt.subplots(figsize=(1.2,1.2))
         ax.text(0,0, label, ha='center', size=70)
         ax.axis('off')
         fig.tight_layout()
         plt.savefig(ref_path)
+
+        print(ref_path)
+        ref = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
+        ref = crop_character_horizontally(ref)
+        ref = crop_character_vertically(ref)
+        plt.savefig(ref_path)
+
         return ref_path
 
 def make_outer_contour(angles, distances, step=3):
@@ -73,24 +114,23 @@ def make_outer_contour(angles, distances, step=3):
     return(angles, distances)
 
 
-def signature_features(equation, label, display=False):
+def signature_features(character, label, angles, distances, display=False):
     """
-    equation : np.array() representing the preprocessed image (loaded with cv2.imread). 
+    character : np.array() representing the preprocessed image (loaded with cv2.imread). 
                 should be one character in grayscale
     """
-
-    angles, distances = compute_angles_and_distances(equation)
 
     ref_path = make_ref_if_not_exists(label)
     ref = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
     # rescale reference to the size of the character
-    ref = cv2.resize(ref, (equation.shape[1],equation.shape[0]))
+    ref = cv2.resize(ref, (character.shape[1],character.shape[0]))
 
     angles_ref, distances_ref = compute_angles_and_distances(ref)
 
     if display:
         plt.scatter(angles_ref, distances_ref, s=1, c="blue", label = f"Signature of reference symbol : {label}")
         plt.scatter(angles, distances, s = 1, c="red", label="Signature of handwritten character")
+        plt.title("Comparison of reference and handwritten character signatures")
         plt.legend()
         plt.show()
 
@@ -107,25 +147,27 @@ def signature_features(equation, label, display=False):
 
     # Compute the difference between reference signature and handwritten character signature
     # The higher the distance, the most different the 2 symbols are
-    pcm = similaritymeasures.pcm(signature, signature_ref)
-    df = similaritymeasures.frechet_dist(signature, signature_ref)
+    area = similaritymeasures.area_between_two_curves(signature, signature_ref)
 
-def main():
-    signature_features = pd.DataFrame()
-    for label in os.listdir(DATA_DIR + SYMBOLS_DIR):
-        pcm, df = signature_features(equation, label)
+    return area
+
+def signature(character):
+    labels = pd.read_table(DATA_DIR + ALL_CLASSES_FILE, sep=" ").columns
+    features = []
+    angles, distances = compute_angles_and_distances(character)
+    for label in labels:
+        logger.info(f"Calculating distance with label : {label}")
+        area = signature_features(character, label, angles, distances)
         name = label.replace("$","")
         name = name.replace("\\", "")
-        signature_features["PCM_" + name] = pcm
-        signature_features["DF_" + name] = df
+        features.append(pd.Series([area], index = ["AREA_" + name]))
+    features = pd.concat(features, axis=0)
+    return features
 
+test = pd.read_pickle("../CROHME_extractor/outputs/test/test.pickle")
+character = test[200]["features"].reshape(50,50)*255
+cv2.imshow("c", character)
+cv2.waitKey(0)
 
-
-
-
-
-
-
-
-
+feat = signature(character)
 
