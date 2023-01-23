@@ -1,17 +1,50 @@
 import os
 import cv2
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from src.utils.pathtools import logger
 import similaritymeasures
 rcParams['text.usetex'] = True
 
 
+def score(data1, data2):
+    assert data1.dtype == float, f"Got type {data1.dtype}, but expected float"
+    assert data2.dtype == float, f"Got type {data2.dtype}, but expected float"
+    
+    data2 = cv2.resize(data2, (data1.shape[1], data1.shape[0]))
+
+    H, W = data1.shape
+    # Feature extraction.
+    N_LINES = 10
+    N_COLS = 10
+    h = H // N_LINES # height of every filter
+    w = H // N_COLS # width of every filter
+    features1 = []
+    features2 = []
+    for i in range(N_LINES):
+        for j in range(N_COLS):
+            features1.append(np.mean(data1[i * h:(i + 1) * h, j * w:(j + 1) * w]))
+            features2.append(np.mean(data2[i * h:(i + 1) * h, j * w:(j + 1) * w]))
+    features1 = np.array(features1)
+    features2 = np.array(features2)
+    cos_sim = np.dot(features1, features2) / (np.linalg.norm(features1) * np.linalg.norm(features2))
+    return cos_sim
 
 
 
+test = pd.read_pickle("../CROHME_extractor/outputs/test/test.pickle")
+character = test[200]["features"].reshape(50,50)*255
+cv2.imshow("c", character)
+cv2.waitKey(0)
 
+REF_DIR = "data/references/"
 
-
-
-
+feature = []
+for ref_path in os.listdir(REF_DIR):
+    logger.info(f"Computing cosine sim with label : {ref_path[:-4]}")
+    ref = cv2.imread(REF_DIR + ref_path)
+    cosim = score(np.array(character, dtype=float), np.array(ref, dtype=float))
+    feature.append(pd.Series([cosim], index= ["cosim_" + ref_path[:-4]] ))
+feature = pd.concat(feature)

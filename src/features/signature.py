@@ -8,7 +8,9 @@ import pandas as pd
 
 from src.preprocessing.preprocess import crop_character_horizontally, crop_character_vertically
 from src.utils.pathtools import logger
+import logging
 
+logger.setLevel(logging.INFO)
 
 rcParams['text.usetex'] = True
 
@@ -26,8 +28,12 @@ def compute_angles_and_distances(character, display=False):
 
     # compute centroid
     M = cv2.moments(character)
-    cX = int(M["m10"] / M["m00"])
-    cY = int(M["m01"] / M["m00"])
+    if M["m00"] == 0:
+        cX = 0
+        cY = 0
+    else:
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
 
     if display:
         # print character + contour + centroid
@@ -58,8 +64,6 @@ def compute_angles_and_distances(character, display=False):
 
 def make_ref_if_not_exists(label):
 
-    label = "$" + label + "$"
-    
     # Find the name of the symbol 
     name = label.replace("$","")
     name = name.replace("\\", "")
@@ -83,6 +87,9 @@ def make_ref_if_not_exists(label):
     # modify label name for visualization purpose
     if "sqrt" in label:
         label = "$\sqrt{}$"
+    if "\\" in label:
+        label = "$" + label + "$"
+
 
     ref_path = DATA_DIR + 'references/' + name + '.png'
     if os.path.exists(ref_path):
@@ -94,12 +101,13 @@ def make_ref_if_not_exists(label):
         ax.axis('off')
         fig.tight_layout()
         plt.savefig(ref_path)
+        plt.close()
 
         print(ref_path)
         ref = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
         ref = crop_character_horizontally(ref)
         ref = crop_character_vertically(ref)
-        plt.savefig(ref_path)
+        cv2.imwrite(ref_path, ref)
 
         return ref_path
 
