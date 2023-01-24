@@ -1,6 +1,6 @@
 *
 !all_classes.txt
-!isolated_symbols/
+!isolated_symbols/one_hot_classes.txt
 !references/
 !background/
 !.gitignore
