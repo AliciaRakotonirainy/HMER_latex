@@ -15,7 +15,7 @@ logger.setLevel(logging.INFO)
 rcParams['text.usetex'] = True
 
 ALL_CLASSES_FILE = "all_classes.txt"
-DATA_DIR = "data/"
+DATA_DIR = "HMER_latex/data/"
 
 def compute_angles_and_distances(character, display=False):
     # Binarize the image
@@ -103,7 +103,6 @@ def make_ref_if_not_exists(label):
         plt.savefig(ref_path)
         plt.close()
 
-        print(ref_path)
         ref = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
         ref = crop_character_horizontally(ref)
         ref = crop_character_vertically(ref)
@@ -171,11 +170,4 @@ def signature(character):
         features.append(pd.Series([area], index = ["AREA_" + name]))
     features = pd.concat(features, axis=0)
     return features
-
-test = pd.read_pickle("../CROHME_extractor/outputs/test/test.pickle")
-character = test[200]["features"].reshape(50,50)*255
-cv2.imshow("c", character)
-cv2.waitKey(0)
-
-feat = signature(character)
 

@@ -29,22 +29,10 @@ def score(data1, data2):
             features2.append(np.mean(data2[i * h:(i + 1) * h, j * w:(j + 1) * w]))
     features1 = np.array(features1)
     features2 = np.array(features2)
-    cos_sim = np.dot(features1, features2) / (np.linalg.norm(features1) * np.linalg.norm(features2))
+    
+    if np.linalg.norm(features1) * np.linalg.norm(features2) == 0:
+        cos_sim = 0
+    else:
+        cos_sim = np.dot(features1, features2) / (np.linalg.norm(features1) * np.linalg.norm(features2))
     return cos_sim
 
-
-
-test = pd.read_pickle("../CROHME_extractor/outputs/test/test.pickle")
-character = test[200]["features"].reshape(50,50)*255
-cv2.imshow("c", character)
-cv2.waitKey(0)
-
-REF_DIR = "data/references/"
-
-feature = []
-for ref_path in os.listdir(REF_DIR):
-    logger.info(f"Computing cosine sim with label : {ref_path[:-4]}")
-    ref = cv2.imread(REF_DIR + ref_path)
-    cosim = score(np.array(character, dtype=float), np.array(ref, dtype=float))
-    feature.append(pd.Series([cosim], index= ["cosim_" + ref_path[:-4]] ))
-feature = pd.concat(feature)

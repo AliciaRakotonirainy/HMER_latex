@@ -5,15 +5,18 @@ from tqdm import tqdm
 import random
 import xml.etree.ElementTree as ET
 
-## Convert all INKML files of the CROHME_training_2011 dataset 
-## INKML files downloaded from https://www.kaggle.com/datasets/rtatman/handwritten-mathematical-expressions
-
-## Source of inkml2img : https://github.com/vndee/offline-crohme
 
 DATA_DIR = "HMER_latex/data/"
 DATASETS = ["CROHME_train_2011/", "trainData_2012_part1/"]
 
 def make_handwritten_dataset():
+    """
+    Convert all INKML files of the chosen datasets (CROHME_train_2011/ for instance)
+    INKML files downloaded from https://www.kaggle.com/datasets/rtatman/handwritten-mathematical-expressions
+
+    Source of inkml2img : https://github.com/vndee/offline-crohme
+
+    """
     for dataset in DATASETS:
         # Create the folder for images converted from INKML to PNG
         os.makedirs(DATA_DIR + DATASET[:-1] + "_PNG")
@@ -65,10 +68,6 @@ def make_handwritten_dataset():
                         with open(DATA_DIR + DATASET[:-1] + "_labels/" + eq_file[:-6] + str(n_back) + "_label.txt", 'w') as f:
                             f.write(child.text)
                         continue
-
-
-                
-
 
 
 
