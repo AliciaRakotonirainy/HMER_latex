@@ -1,6 +1,6 @@
-*
-!all_classes.txt
-!isolated_symbols/one_hot_classes.txt
-!references/
-!background/
-!.gitignore
+CROHME_train_2011/
+CROHME_train_2011_background/
+CROHME_train_2011_labels/
+CROHME_train_2011_PNG/
+trainData_2012_part1/
+trainData_2012_part1_PNG/
