@@ -10,12 +10,12 @@ from src.preprocessing.preprocess import crop_character_horizontally, crop_chara
 from src.utils.pathtools import logger
 import logging
 
+from src.utils.constants import *
+
 logger.setLevel(logging.INFO)
 
 rcParams['text.usetex'] = True
 
-ALL_CLASSES_FILE = "all_classes.txt"
-DATA_DIR = "HMER_latex/data/"
 
 def compute_angles_and_distances(character, display=False):
     # Binarize the image
@@ -111,6 +111,9 @@ def make_ref_if_not_exists(label):
         return ref_path
 
 def make_outer_contour(angles, distances, step=3):
+    """ 
+    Not useful here
+    """
     for i in range(-180,180,step):
         idx_similar_angle = np.where((i <= angles) & (angles < i + step))[0]
 
@@ -127,11 +130,15 @@ def signature_features(character, label, angles, distances, display=False):
                 should be one character in grayscale
     """
 
+    # get reference image path ; creates the image if it does not yet exists
     ref_path = make_ref_if_not_exists(label)
+    # load the reference image
     ref = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
+
     # rescale reference to the size of the character
     ref = cv2.resize(ref, (character.shape[1],character.shape[0]))
 
+    # compute the angles and distances as function of angles for the reference image
     angles_ref, distances_ref = compute_angles_and_distances(ref)
 
     if display:
@@ -167,6 +174,10 @@ def signature(character):
         area = signature_features(character, label, angles, distances)
         name = label.replace("$","")
         name = name.replace("\\", "")
+        # replace characters that are not allowed in the name of features for XGBoost
+        name = name.replace("[", "hookopen")
+        name = name.replace("]", "hookclose")
+        name = name.replace("<", "less")
         features.append(pd.Series([area], index = ["AREA_" + name]))
     features = pd.concat(features, axis=0)
     return features

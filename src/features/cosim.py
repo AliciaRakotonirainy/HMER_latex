@@ -1,11 +1,7 @@
-import os
 import cv2
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 from matplotlib import rcParams
-from src.utils.pathtools import logger
-import similaritymeasures
+
 rcParams['text.usetex'] = True
 
 
@@ -17,8 +13,8 @@ def score(data1, data2):
 
     H, W = data1.shape
     # Feature extraction.
-    N_LINES = 10
-    N_COLS = 10
+    N_LINES = 5
+    N_COLS = 5
     h = H // N_LINES # height of every filter
     w = H // N_COLS # width of every filter
     features1 = []
@@ -34,5 +30,6 @@ def score(data1, data2):
         cos_sim = 0
     else:
         cos_sim = np.dot(features1, features2) / (np.linalg.norm(features1) * np.linalg.norm(features2))
+        print(cos_sim)
     return cos_sim
 
