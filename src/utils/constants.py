@@ -15,6 +15,7 @@ ALL_CLASSES_FILE = "all_classes.txt"
 
 ## FEATURES
 STANDARD_SHAPE = (50,50)
+FILTER_SIZE = 5
 
 ## XGB
 
@@ -23,8 +24,8 @@ TEST_SIZE_XGB = 0.3
 XGB_BEST_PARAMS_FILE = OUTPUT_DIR + "xgb_best_params.json"
 XGB_PARAM_SEARCH = {
     'max_depth': [3, 4, 5, 6],
-    'learning_rate': [0.01, 0.05, 0.1, 0.2],
-    'colsample_bytree': [0.2, 0.5, 0.8, 1]
+    'learning_rate': [0.05, 0.1, 0.2, 0.3],
+    'colsample_bytree': [0.01, 0.2, 0.5]
 }
 XGB_DEFAULT_PARAM_TO_SEARCH = {
     'max_depth': 4,

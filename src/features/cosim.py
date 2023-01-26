@@ -15,12 +15,12 @@ def compute_mean_filters(img, save_path = None):
 
     assert img.dtype == float, f"Got type {img.dtype}, but expected float"
 
-    #img = ready_for_similarity(img)
+    img = ready_for_similarity(img)
 
     H, W = img.shape
 
-    N_LINES = 10
-    N_COLS = 10
+    N_LINES = FILTER_SIZE
+    N_COLS = FILTER_SIZE
     h = H // N_LINES # height of every filter
     w = W // N_COLS # width of every filter
 
