@@ -75,7 +75,7 @@ def crop_character_vertically(data):
     return data
 
 
-def extract_characters(equation, display=True):
+def extract_characters(equation, display=False):
     # gray scale
     equation = cv2.cvtColor(equation, cv2.COLOR_BGR2GRAY)
     equation = cv2.resize(equation, (equation.shape[1]//2, equation.shape[0]//2))

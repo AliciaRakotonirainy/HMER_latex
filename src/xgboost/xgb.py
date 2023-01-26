@@ -55,9 +55,9 @@ class FinalClassifier(object):
         return balanced_train
 
 
-    def load_features(self):
+    def load_features(self, force_features_computation=True):
 
-        if os.path.exists(self.train_features_path):
+        if os.path.exists(self.train_features_path) and not force_features_computation:
             print("Training set features already computed: loading features...")
             self.full_train_features = pd.read_csv(self.train_features_path, header=0, index_col=0)
             self.y_train = pd.read_csv(self.train_labels_path, header=0, index_col=0)
