@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 from matplotlib import rcParams
 
+from src.utils.constants import *
+
 rcParams['text.usetex'] = True
 
 def compute_mean_filters(img, save_path = None):
@@ -12,6 +14,10 @@ def compute_mean_filters(img, save_path = None):
     """
 
     assert img.dtype == float, f"Got type {img.dtype}, but expected float"
+
+    img = ready_for_similarity(img)
+
+    
 
     H, W = img.shape
 
@@ -41,4 +47,14 @@ def cosine_sim(features1, features2):
     else:
         cos_sim = np.dot(features1, features2) / (np.linalg.norm(features1) * np.linalg.norm(features2))
     return cos_sim
+
+
+def ready_for_similarity(data):
+    """Preprocess array to be ready for the similarity computation."""
+    final_data = cv2.resize(final_data, STANDARD_SHAPE)
+    final_data = np.zeros(shape=data.shape, dtype=float)
+    mask = data > 128
+    final_data[mask] = -1
+    final_data[np.invert(mask)] = 1
+    return final_data
 

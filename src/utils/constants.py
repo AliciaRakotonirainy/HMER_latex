@@ -11,6 +11,9 @@ TRAINSET_ISOLATED_SYMBOLS = DATA_DIR + "isolated_symbols/train.pickle"
 TRAIN_FEATURES_ISOLATED_SYMBOLS = OUTPUT_DIR + "isolated_symbols/train_features.csv"
 ALL_CLASSES_FILE = "all_classes.txt"
 
+## FEATURES
+STANDARD_SHAPE = (100, 100)
+
 ## XGB
 
 TEST_SIZE_XGB = 0.3
