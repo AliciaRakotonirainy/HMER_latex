@@ -1,0 +1,12 @@
+pandas
+numpy
+os
+cv2
+tqdm
+json
+sklearn
+xgboost
+logging
+matplotlib
+similaritymeasures
+numpy
