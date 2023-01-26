@@ -3,10 +3,10 @@ import os
 import cv2
 import numpy as np
 from tqdm import tqdm
+import json
 
 from src.features.cosim import compute_mean_filters, cosine_sim
 from src.features.signature import compute_angles_and_distances, compute_signature, make_ref_if_not_exists
-from src.utils.pathtools import logger
 from src.preprocessing.preprocess import extract_characters
 
 from sklearn.model_selection import GridSearchCV, train_test_split
@@ -16,13 +16,19 @@ import xgboost
 import logging
 from src.utils.constants import *
 
-logger.setLevel(logging.INFO)
+import logging
+
+logger = logging.root
+logFormatter = logging.Formatter('{relativeCreated:12.0f}ms {levelname:5s} [{filename}] {message:s}', style='{')
+logger.setLevel(logging.DEBUG)
+
 
 class FinalClassifier(object):
 
     def __init__(self, test_size = TEST_SIZE_XGB):
         self.trainset_path = TRAINSET_ISOLATED_SYMBOLS
         self.train_features_path = TRAIN_FEATURES_ISOLATED_SYMBOLS
+        self.train_labels_path = TRAIN_LABELS_ISOLATED_SYMBOLS
 
         self._trained = False
 
@@ -36,7 +42,7 @@ class FinalClassifier(object):
             os.makedirs(path)
 
 
-    def balance_trainset(self, n_per_class = 100):
+    def balance_trainset(self, n_per_class = 500):
         labels = pd.read_table(CLASSES_FILE, header=None)
         n_classes = len(self.train[0]["label"])
 
@@ -50,6 +56,13 @@ class FinalClassifier(object):
 
 
     def load_features(self):
+
+        if os.path.exists(self.train_features_path):
+            print("Training set features already computed: loading features...")
+            self.full_train_features = pd.read_csv(self.train_features_path, header=0, index_col=0)
+            self.y_train = pd.read_csv(self.train_labels_path, header=0, index_col=0)
+            return
+
         # load whole trainset of isolated symbols
         self.train = pd.read_pickle(self.trainset_path)
         
@@ -117,6 +130,7 @@ class FinalClassifier(object):
         self.full_train_features = pd.concat(self.full_train_features, axis=1) # features x samples
         self.full_train_features = self.full_train_features.transpose() # samples x features
         self.full_train_features.to_csv(self.train_features_path)
+        pd.DataFrame(self.y_train).to_csv(self.train_labels_path)
 
     def split_train_test(self, test_size):
         """Splits the full_train set into train and test.
@@ -134,7 +148,26 @@ class FinalClassifier(object):
             test_size=test_size
         )
 
-    def init_classifier(self):
+    def xgb_tuning(self):
+        print("Tuning XGB...")
+        xgbc = xgboost.XGBClassifier(objective='multi:softmax', num_class=NUM_CLASS_XGB)
+        clf = GridSearchCV(estimator=xgbc, 
+            param_grid=XGB_PARAM_SEARCH,
+            scoring='accuracy', 
+            verbose=1
+        )
+        clf.fit(self.full_train_features, self.y_train)
+        result = clf.best_params_
+        print('End of XGB tuning')
+
+        # Saving
+        with open(XGB_BEST_PARAMS_FILE, "w") as f:
+            json.dump(result, f)
+        print(f'Tuning parameters stored at {XGB_BEST_PARAMS_FILE}')
+
+        return result
+
+    def init_classifier(self, tune_xgb = True):
         """Initiates the XGBoost classifier.
         """
         logger.info('Starting XGB tuning')
@@ -142,8 +175,13 @@ class FinalClassifier(object):
         # warning : feature_names must be string, and may not contain [, ] or <
         self.dtrain = xgboost.DMatrix(self.train_features, label = self.train_labels)
         self.dtest = xgboost.DMatrix(self.test_features, label = self.test_labels)
+
+        if tune_xgb:
+            searched_parameters = self.xgb_tuning()
+        else:
+            searched_parameters = XGB_DEFAULT_PARAM_TO_SEARCH
         
-        self.xgb_params = {**XGB_DEFAULT_PARAM_TO_SEARCH, **XGB_ADDITIONNAL_PARAM}
+        self.xgb_params = {**searched_parameters, **XGB_ADDITIONNAL_PARAM}
 
     
     def train_xgb(self):
@@ -243,7 +281,7 @@ def main():
     # if we want to compute the accuracy of the whole model
 
     # load unprocessed equation img
-    equation = cv2.imread(EQUATION_BACKGROUND_DIR + "formulaire001-equation0464.png")
+    equation = cv2.imread(HANDCRAFTED_EQ_DIR + "equation_1.jpg")
 
     # load file giving the correspondance between one_hot_encoding and label
     one_hot_classes = pd.read_table(CLASSES_FILE, header=None)

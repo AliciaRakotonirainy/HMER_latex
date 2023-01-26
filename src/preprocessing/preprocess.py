@@ -78,18 +78,20 @@ def crop_character_vertically(data):
 def extract_characters(equation, display=True):
     # gray scale
     equation = cv2.cvtColor(equation, cv2.COLOR_BGR2GRAY)
+    equation = cv2.resize(equation, (equation.shape[1]//2, equation.shape[0]//2))
 
-    # Bilateral filtering for threshold computation
-    blur = cv2.bilateralFilter(equation, 9, 80, 80) # Warning ! The performance is HIGHLY dependent on the parameters of this filter
+    # Gaussian Blur
+    equation = cv2.GaussianBlur(equation,(11,11), sigmaX=2, sigmaY=2)
 
-    # find threshold using Balanced Histogram Thresholding on the blured image
-    histogram = plt.hist(blur.ravel(),256,[0,256])
-    plt.clf()
-    thresh = balanced_hist_thresholding(histogram)
+    equation = cv2.adaptiveThreshold(equation,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
+            cv2.THRESH_BINARY,11,2)
 
-    # Apply the threshold on the not blured image (better results)
-    equation[equation > thresh] = 255
-    equation[equation < thresh] = 0
+
+    equation = cv2.dilate(equation, np.ones((3,3),np.uint8))
+    equation = cv2.erode(equation, np.ones((3,3),np.uint8))
+
+    cv2.imshow("eq", equation)
+    cv2.waitKey(0)
 
     # Detect characters
     intensity_dist = np.sum(equation, axis=0)
