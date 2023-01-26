@@ -1,1 +1,1 @@
-{"colsample_bytree": 0.2, "learning_rate": 0.2, "max_depth": 4}
+{"colsample_bytree": 0.5, "learning_rate": 0.3, "max_depth": 4}
