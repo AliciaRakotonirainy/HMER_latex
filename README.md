@@ -4,7 +4,7 @@
 
 J'ai commencé par créer un gros dataset d'images d'équations manuscrites sur un fond de papier. Le but était d'avoir suffisamment d'images pour pouvoir évaluer notre modèle, sans avoir à créer le dataset à la main (ce qui serait très fastidieux notamment pour la labellisation).
 
-J'ai pris le dataset d'équations manuscrites CROHME_train_2011. Il est conçu pour du on-line OCR, donc le format des images est en .inkml (pas très pratique). J'ai utilisé le Git repository [ThomasLech/CROHME_extractor](https://github.com/ThomasLech/CROHME_extractor) pour convertir les fichiers .inkml en .png, et j'ai ajouté plusieurs fonds différents. J'ai aussi enregistré chaque label de chaque équation. Cf le fichier zip que je t'ai envoyé :       
+J'ai pris le dataset d'équations manuscrites CROHME_train_2011. Il est conçu pour du on-line OCR, donc le format des images est en .inkml (pas très pratique). J'ai utilisé le Git repository [ThomasLech/CROHME_extractor](https://github.com/ThomasLech/CROHME_extractor) pour convertir les fichiers .inkml en .png, et j'ai ajouté plusieurs fonds différents (le code pour ça est dans `src/utils/make_handwritten_dataset.py`, mais pas besoin de le relancer puisque je t'envoie le dataset en zip par mail). J'ai aussi enregistré chaque label de chaque équation. Cf le fichier zip que je t'ai envoyé :       
 
     - data/CROHME_train_2011_PNG/ contient les images des équations en .png, avec fond blanc     
     - data/CROHME_train_2011_background/ contient les images des équations en .png, avec différents fonds de papiers     

@@ -4,8 +4,8 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
-from src.features.cosim import score
-from src.features.signature import signature
+from src.features.cosim import compute_mean_filters, cosine_sim
+from src.features.signature import compute_angles_and_distances, compute_signature, make_ref_if_not_exists
 from src.utils.pathtools import logger
 from src.preprocessing.preprocess import extract_characters
 
@@ -29,16 +29,36 @@ class FinalClassifier(object):
         self.load_features()
         self.split_train_test(test_size)
         self.init_classifier()
-    
-    def load_features(self):
 
+    def make_dir_if_not_exists(self, path):
+        exist = os.path.exists(path)
+        if not exist:
+            os.makedirs(path)
+
+    def load_features(self):
         # load whole trainset of isolated symbols
         self.train = pd.read_pickle(self.trainset_path)
-
         # test only on 50 samples so that it's fast : REMOVE it when we have more computational resource
-        self.train = self.train[:50]
+        self.train = self.train[:10]
 
-        # compute the features (cosine sim + signature sim) for each symbol in the train dataset
+        ## Preparing reference features and saving it
+
+        # making reference images if they dont exist :
+        labels = pd.read_table(DATA_DIR + ALL_CLASSES_FILE, sep=" ").columns
+        for label in labels:
+            make_ref_if_not_exists(label)
+
+        # creates output directory for reference features
+        self.make_dir_if_not_exists(OUTPUT_DIR + "reference/")
+
+        # computes and saves reference features 
+        for ref_path in os.listdir(REF_DIR):
+            ref = cv2.imread(REF_DIR + ref_path, cv2.IMREAD_GRAYSCALE)
+            compute_mean_filters(np.array(ref, dtype=float), save_path= OUTPUT_DIR + "reference/average_filters_features_" + ref_path[:-4])
+            compute_angles_and_distances(ref, 
+                                        save_path_angles = OUTPUT_DIR + "reference/angles_" + ref_path[:-4],
+                                        save_path_distances = OUTPUT_DIR + "reference/distances_" + ref_path[:-4])
+
         self.full_train_features = []
         self.y_train = []
         for symbol in tqdm(self.train):
@@ -46,25 +66,37 @@ class FinalClassifier(object):
             lab = symbol["label"]
             self.y_train.append(np.where(lab == 1)[0][0])
 
+            # cosine sim
+            mean_filters = compute_mean_filters(np.array(img, dtype=float))
             cosim_features = []
-            # for each possible reference symbol, compute the cosine similarity with it
+            # signature
+            angles, distances = compute_angles_and_distances(img)
+            signature_features = []
+            
             for ref_path in os.listdir(REF_DIR):
-                # read image of the reference symbol
-                ref = cv2.imread(REF_DIR + ref_path)
-                cosim = score(np.array(img, dtype=float), np.array(ref, dtype=float))
                 
-                # replace names that are not allowed in XGBoost feature names
-                name = ref_path[:-4]
-                name = name.replace("[", "hookopen")
-                name = name.replace("]", "hookclose")
-                name = name.replace("<", "less")
-                cosim_features.append(pd.Series([cosim], index= ["cosim_" + name] ))
+                ## Cosine sim
+
+                # read the averaged values on 100 windows for this reference image : 
+                mean_filters_ref = pd.read_csv(OUTPUT_DIR + "reference/average_filters_features_" + ref_path[:-4], 
+                                                header=None, index_col=0)
+                # compute the cosine sim between symbol and reference
+                cosim = cosine_sim(mean_filters, np.array(mean_filters_ref, dtype=float).flatten())
+                cosim_features.append(pd.Series([cosim], index= ["cosim_" + ref_path[:-4]] ))
+
+                ## Signature
+
+                # read angles and corresponding distances for this reference image
+                angles_ref = pd.read_csv(OUTPUT_DIR + "reference/angles_" + ref_path[:-4])
+                distances_ref = pd.read_csv(OUTPUT_DIR + "reference/distances_" + ref_path[:-4])
+
+                signature = compute_signature(angles, distances, angles_ref, distances_ref)
+                signature_features.append(pd.Series([signature], index=["AREA_" + ref_path[:-4]]))
+            
             cosim_features = pd.concat(cosim_features)
+            signature_features = pd.concat(signature_features, axis=0)
 
-            # Compute signature similarity with each reference symbol
-            signature_feature = signature(img)
-
-            self.full_train_features.append(pd.concat([cosim_features, signature_feature]))
+            self.full_train_features.append(pd.concat([cosim_features, signature_features]))
 
         # all features for all the isolated symbols of the train set
         self.full_train_features = pd.concat(self.full_train_features, axis=1) # features x samples
@@ -124,7 +156,7 @@ class FinalClassifier(object):
         for metric in self.evaluation_results:
             logger.info(f'XGBoost evaluation (train/test split on whole train): {metric}: {self.evaluation_results[metric]}')
 
-    def predict(self, equation, eval_first = True):
+    def predict(self, equation, one_hot_classes, eval_first = True):
         """Makes the prediction of all individual characters in ONE equation only.
         """
         if not self._trained:
@@ -133,35 +165,46 @@ class FinalClassifier(object):
         if eval_first:
             self.eval()
 
-        # preprocess the equation image
-        character_list = extract_characters(equation)
+        # file giving the correspondance between one_hot_encoding and label
+        self.one_hot_classes = one_hot_classes
 
-        # load file giving the correspondance between one_hot_encoding and label
-        one_hot_classes = pd.read_table(CLASSES_FILE, header=None)
+        # preprocess the equation image and extract individual characters (that are appropriately cropped)
+        character_list = extract_characters(equation)
 
         # apply prediction on each character of this equation :
         characters_features = []
-        for char in character_list:
-            # compute the features of this character
-
+        for char in tqdm(character_list):
+            # cosine sim
+            mean_filters = compute_mean_filters(np.array(char, dtype=float))
             cosim_features = []
-            # for each possible reference symbol, compute the cosine similarity
+            # signature
+            angles, distances = compute_angles_and_distances(char)
+            signature_features = []
+            
             for ref_path in os.listdir(REF_DIR):
-                # read image of the reference symbol
-                ref = cv2.imread(REF_DIR + ref_path)
-                cosim = score(np.array(char, dtype=float), np.array(ref, dtype=float))
                 
-                # replace names that are not allowed in XGBoost feature names
-                name = ref_path[:-4]
-                name = name.replace("[", "hookopen")
-                name = name.replace("]", "hookclose")
-                name = name.replace("<", "less")
-                cosim_features.append(pd.Series([cosim], index= ["cosim_" + name] ))
-            cosim_features = pd.concat(cosim_features)
+                ## Cosine sim
 
-            # Compute signature similarity with each reference symbol
-            signature_feature = signature(char)
-            characters_features.append(pd.concat([cosim_features, signature_feature]))
+                # read the averaged values on 100 windows for this reference image : 
+                mean_filters_ref = pd.read_csv(OUTPUT_DIR + "reference/average_filters_features_" + ref_path[:-4], 
+                                                header=None, index_col=0)
+                # compute the cosine sim between symbol and reference
+                cosim = cosine_sim(mean_filters, np.array(mean_filters_ref, dtype=float).flatten())
+                cosim_features.append(pd.Series([cosim], index= ["cosim_" + ref_path[:-4]] ))
+
+                ## Signature
+
+                # read angles and corresponding distances for this reference image
+                angles_ref = pd.read_csv(OUTPUT_DIR + "reference/angles_" + ref_path[:-4])
+                distances_ref = pd.read_csv(OUTPUT_DIR + "reference/distances_" + ref_path[:-4])
+
+                signature = compute_signature(angles, distances, angles_ref, distances_ref)
+                signature_features.append(pd.Series([signature], index=["AREA_" + ref_path[:-4]]))
+            
+            cosim_features = pd.concat(cosim_features)
+            signature_features = pd.concat(signature_features, axis=0)
+
+            characters_features.append(pd.concat([cosim_features, signature_features], axis=0))
 
         characters_features = pd.concat(characters_features, axis = 1).transpose()
 
@@ -187,7 +230,9 @@ def main():
     # load unprocessed equation img
     equation = cv2.imread(EQUATION_BACKGROUND_DIR + "formulaire001-equation0464.png")
 
-    prediction = final_xgboost.predict(equation)
+    # load file giving the correspondance between one_hot_encoding and label
+    one_hot_classes = pd.read_table(CLASSES_FILE, header=None)
+    prediction = final_xgboost.predict(equation, one_hot_classes=one_hot_classes)
 
 if __name__ == '__main__':
     main()

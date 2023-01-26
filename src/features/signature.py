@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 rcParams['text.usetex'] = True
 
 
-def compute_angles_and_distances(character, display=False):
+def compute_angles_and_distances(character, save_path_angles = None, save_path_distances = None, display=False):
     # Binarize the image
     ret, mask = cv2.threshold(character, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
@@ -59,6 +59,15 @@ def compute_angles_and_distances(character, display=False):
         plt.plot(angles, distances)
         plt.title("Distance of contour to centroid, as a function of angle")
         plt.show()
+
+    if save_path_angles is not None:
+        angles_df = pd.DataFrame(angles)
+        distances_df = pd.DataFrame(distances)
+        angles_df.to_csv(save_path_angles, header=False)
+        distances_df.to_csv(save_path_distances, header=False)
+
+    angles = angles.reshape(-1, 1)
+    distances = distances.reshape(-1,1)
 
     return angles, distances
 
@@ -123,23 +132,7 @@ def make_outer_contour(angles, distances, step=3):
 
     return(angles, distances)
 
-
-def signature_features(character, label, angles, distances, display=False):
-    """
-    character : np.array() representing the preprocessed image (loaded with cv2.imread). 
-                should be one character in grayscale
-    """
-
-    # get reference image path ; creates the image if it does not yet exists
-    ref_path = make_ref_if_not_exists(label)
-    # load the reference image
-    ref = cv2.imread(ref_path, cv2.IMREAD_GRAYSCALE)
-
-    # rescale reference to the size of the character
-    ref = cv2.resize(ref, (character.shape[1],character.shape[0]))
-
-    # compute the angles and distances as function of angles for the reference image
-    angles_ref, distances_ref = compute_angles_and_distances(ref)
+def compute_signature(angles, distances, angles_ref, distances_ref, display=False):
 
     if display:
         plt.scatter(angles_ref, distances_ref, s=1, c="blue", label = f"Signature of reference symbol : {label}")
@@ -148,16 +141,11 @@ def signature_features(character, label, angles, distances, display=False):
         plt.legend()
         plt.show()
 
+    signature = np.concatenate((angles, distances), axis = 1)
+    signature_ref = np.concatenate((angles_ref, distances_ref), axis = 1)
+
     ## Warning ! The plot (angles, distances) is an **arbitrary curve**, meaning that 1 angle can
     ## be associated to several distances
-
-    angles = angles.reshape(-1, 1)
-    distances = distances.reshape(-1,1)
-    signature = np.concatenate((angles, distances), axis = 1)
-
-    angles_ref = angles_ref.reshape(-1,1)
-    distances_ref = distances_ref.reshape(-1,1)
-    signature_ref = np.concatenate((angles_ref, distances_ref), axis = 1)
 
     # Compute the difference between reference signature and handwritten character signature
     # The higher the distance, the most different the 2 symbols are
@@ -165,20 +153,5 @@ def signature_features(character, label, angles, distances, display=False):
 
     return area
 
-def signature(character):
-    labels = pd.read_table(DATA_DIR + ALL_CLASSES_FILE, sep=" ").columns
-    features = []
-    angles, distances = compute_angles_and_distances(character)
-    for label in labels:
-        logger.info(f"Calculating distance with label : {label}")
-        area = signature_features(character, label, angles, distances)
-        name = label.replace("$","")
-        name = name.replace("\\", "")
-        # replace characters that are not allowed in the name of features for XGBoost
-        name = name.replace("[", "hookopen")
-        name = name.replace("]", "hookclose")
-        name = name.replace("<", "less")
-        features.append(pd.Series([area], index = ["AREA_" + name]))
-    features = pd.concat(features, axis=0)
-    return features
+
 

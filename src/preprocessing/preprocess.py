@@ -75,7 +75,7 @@ def crop_character_vertically(data):
     return data
 
 
-def extract_characters(equation):
+def extract_characters(equation, display=True):
     # gray scale
     equation = cv2.cvtColor(equation, cv2.COLOR_BGR2GRAY)
 
@@ -87,11 +87,9 @@ def extract_characters(equation):
     plt.clf()
     thresh = balanced_hist_thresholding(histogram)
 
-
     # Apply the threshold on the not blured image (better results)
     equation[equation > thresh] = 255
     equation[equation < thresh] = 0
-
 
     # Detect characters
     intensity_dist = np.sum(equation, axis=0)
@@ -109,14 +107,15 @@ def extract_characters(equation):
     # contains the list of arrays representing each character in this equation
     cropped_splits = [crop_character_vertically(split) for split in splits]
 
-    if len(cropped_splits)==1:
-        plt.imshow(cropped_splits[0], cmap="gray")
-        plt.show()
-    else:
-        fig, ax = plt.subplots(1, len(cropped_splits), figsize=(15, 15))
-        for i, split in enumerate(cropped_splits):
-            #tmp_img = Image.fromarray(split)
-            ax[i].imshow(split, cmap="gray")
-        plt.show()
+    if display:
+        if len(cropped_splits)==1:
+            plt.imshow(cropped_splits[0], cmap="gray")
+            plt.show()
+        else:
+            fig, ax = plt.subplots(1, len(cropped_splits), figsize=(15, 15))
+            for i, split in enumerate(cropped_splits):
+                #tmp_img = Image.fromarray(split)
+                ax[i].imshow(split, cmap="gray")
+            plt.show()
 
     return(cropped_splits)

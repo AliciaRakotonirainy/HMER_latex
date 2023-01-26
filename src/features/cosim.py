@@ -1,35 +1,44 @@
 import cv2
 import numpy as np
+import pandas as pd
 from matplotlib import rcParams
 
 rcParams['text.usetex'] = True
 
+def compute_mean_filters(img, save_path = None):
+    """ 
+    Compute the mean of the image on 100 windows. 
+    If save_path is provided, saves this averaged image at this path.
+    """
 
-def score(data1, data2):
-    assert data1.dtype == float, f"Got type {data1.dtype}, but expected float"
-    assert data2.dtype == float, f"Got type {data2.dtype}, but expected float"
-    
-    data2 = cv2.resize(data2, (data1.shape[1], data1.shape[0]))
+    assert img.dtype == float, f"Got type {img.dtype}, but expected float"
 
-    H, W = data1.shape
-    # Feature extraction.
-    N_LINES = 5
-    N_COLS = 5
+    H, W = img.shape
+
+    N_LINES = 10
+    N_COLS = 10
     h = H // N_LINES # height of every filter
-    w = H // N_COLS # width of every filter
-    features1 = []
-    features2 = []
+    w = W // N_COLS # width of every filter
+
+    features = []
     for i in range(N_LINES):
         for j in range(N_COLS):
-            features1.append(np.mean(data1[i * h:(i + 1) * h, j * w:(j + 1) * w]))
-            features2.append(np.mean(data2[i * h:(i + 1) * h, j * w:(j + 1) * w]))
-    features1 = np.array(features1)
-    features2 = np.array(features2)
+            features.append(np.mean(img[i * h:(i + 1) * h, j * w:(j + 1) * w]))
+
+    if save_path is not None:
+        features = pd.DataFrame(features)
+        features.to_csv(save_path, header=False)
+
+    features = np.array(features)
+    return features
+
+def cosine_sim(features1, features2):
+    # we do not need to resize the images to the same size since we are doing 
+    # an average on the same number of windows, regardless of the initial size of the image
     
     if np.linalg.norm(features1) * np.linalg.norm(features2) == 0:
         cos_sim = 0
     else:
         cos_sim = np.dot(features1, features2) / (np.linalg.norm(features1) * np.linalg.norm(features2))
-        print(cos_sim)
     return cos_sim
 
