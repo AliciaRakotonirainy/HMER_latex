@@ -35,11 +35,26 @@ class FinalClassifier(object):
         if not exist:
             os.makedirs(path)
 
+
+    def balance_trainset(self, n_per_class = 100):
+        labels = pd.read_table(CLASSES_FILE, header=None)
+        n_classes = len(self.train[0]["label"])
+
+        balanced_train = []
+        occurence_per_class = dict([(label, 0) for label in range(n_classes)])
+        for sample in self.train:
+            if occurence_per_class[np.where(sample["label"] == 1)[0][0]] < n_per_class:
+                balanced_train.append(sample)
+                occurence_per_class[np.where(sample["label"] == 1)[0][0]] += 1
+        return balanced_train
+
+
     def load_features(self):
         # load whole trainset of isolated symbols
         self.train = pd.read_pickle(self.trainset_path)
-        # test only on 50 samples so that it's fast : REMOVE it when we have more computational resource
-        self.train = self.train[:10]
+        
+        # make balanced dataset, with 100 occurences of each class
+        self.train = self.balance_trainset()
 
         ## Preparing reference features and saving it
 
@@ -233,6 +248,8 @@ def main():
     # load file giving the correspondance between one_hot_encoding and label
     one_hot_classes = pd.read_table(CLASSES_FILE, header=None)
     prediction = final_xgboost.predict(equation, one_hot_classes=one_hot_classes)
+    prediction = pd.DataFrame(prediction)
+    prediction.to_csv(OUTPUT_DIR + "prediction.csv")
 
 if __name__ == '__main__':
     main()
