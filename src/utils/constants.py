@@ -12,7 +12,7 @@ TRAIN_FEATURES_ISOLATED_SYMBOLS = OUTPUT_DIR + "isolated_symbols/train_features.
 ALL_CLASSES_FILE = "all_classes.txt"
 
 ## FEATURES
-STANDARD_SHAPE = (100, 100)
+STANDARD_SHAPE = (50,50)
 
 ## XGB
 

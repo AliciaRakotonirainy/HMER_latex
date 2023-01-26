@@ -15,9 +15,7 @@ def compute_mean_filters(img, save_path = None):
 
     assert img.dtype == float, f"Got type {img.dtype}, but expected float"
 
-    img = ready_for_similarity(img)
-
-    
+    #img = ready_for_similarity(img)
 
     H, W = img.shape
 
@@ -51,7 +49,7 @@ def cosine_sim(features1, features2):
 
 def ready_for_similarity(data):
     """Preprocess array to be ready for the similarity computation."""
-    final_data = cv2.resize(final_data, STANDARD_SHAPE)
+    data = cv2.resize(data, STANDARD_SHAPE)
     final_data = np.zeros(shape=data.shape, dtype=float)
     mask = data > 128
     final_data[mask] = -1

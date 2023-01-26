@@ -19,6 +19,7 @@ rcParams['text.usetex'] = True
 
 def compute_angles_and_distances(character, save_path_angles = None, save_path_distances = None, display=False):
     # Binarize the image
+
     ret, mask = cv2.threshold(character, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
     # Extract largest blob

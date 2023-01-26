@@ -85,7 +85,7 @@ class FinalClassifier(object):
             mean_filters = compute_mean_filters(np.array(img, dtype=float))
             cosim_features = []
             # signature
-            angles, distances = compute_angles_and_distances(img)
+            angles, distances = compute_angles_and_distances(img.astype("uint8"))
             signature_features = []
             
             for ref_path in os.listdir(REF_DIR):
@@ -193,7 +193,7 @@ class FinalClassifier(object):
             mean_filters = compute_mean_filters(np.array(char, dtype=float))
             cosim_features = []
             # signature
-            angles, distances = compute_angles_and_distances(char)
+            angles, distances = compute_angles_and_distances(char.astype("uint8"))
             signature_features = []
             
             for ref_path in os.listdir(REF_DIR):
