@@ -9,13 +9,13 @@ REF_DIR = DATA_DIR + "references/"
 ## FILES
 CLASSES_FILE = DATA_DIR + "isolated_symbols/one_hot_classes.txt"
 TRAINSET_ISOLATED_SYMBOLS = DATA_DIR + "isolated_symbols/train.pickle"
-TRAIN_FEATURES_ISOLATED_SYMBOLS = OUTPUT_DIR + "isolated_symbols/train_features.csv"
+TRAIN_FEATURES_ISOLATED_SYMBOLS = OUTPUT_DIR + "isolated_symbols/train_features_filter10_cosim.csv"
 TRAIN_LABELS_ISOLATED_SYMBOLS = OUTPUT_DIR + "isolated_symbols/train_labels.csv"
 ALL_CLASSES_FILE = "all_classes.txt"
 
 ## FEATURES
 STANDARD_SHAPE = (50,50)
-FILTER_SIZE = 5
+FILTER_SIZE = 10
 
 ## XGB
 
