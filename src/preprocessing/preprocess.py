@@ -2,6 +2,7 @@ import cv2
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import signal
 
 def balanced_hist_thresholding(hist):
 
@@ -78,20 +79,33 @@ def crop_character_vertically(data):
 def extract_characters(equation, display=False):
     # gray scale
     equation = cv2.cvtColor(equation, cv2.COLOR_BGR2GRAY)
-    equation = cv2.resize(equation, (equation.shape[1]//2, equation.shape[0]//2))
 
-    # Gaussian Blur
-    equation = cv2.GaussianBlur(equation,(11,11), sigmaX=2, sigmaY=2)
+    # detect edges
+    edges = cv2.Canny(equation,20,150,apertureSize = 3)
 
-    equation = cv2.adaptiveThreshold(equation,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
-            cv2.THRESH_BINARY,11,2)
+    # apply houghlines to detect lines
+    minLineLength = 400
+    maxLineGap = 30
+    lines = cv2.HoughLinesP(edges,1,np.pi/180,100,minLineLength,maxLineGap)
+    llength = len(lines)
+    for x in range(0, llength):
+        for x1,y1,x2,y2 in lines[x]:
+            if x1 == x2 or y1 == y2:
+                # remove lines by painting white on it
+                img = cv2.line(equation,(x1,y1),(x2,y2),(255,255,255),2)
 
+    # apply big blur to smooth the histogram
+    img = cv2.GaussianBlur(equation,(61,61), sigmaX=10, sigmaY=10)
 
-    equation = cv2.dilate(equation, np.ones((3,3),np.uint8))
-    equation = cv2.erode(equation, np.ones((3,3),np.uint8))
+    # smoothed histogram of intensities
+    histogram = plt.hist(img.ravel(), 256, [0,256])
+    # balanced histogram thresholding
+    thresh = balanced_hist_thresholding(histogram)
+    equation[equation > thresh] = 255
+    equation[equation < thresh] = 0
 
-    cv2.imshow("eq", equation)
-    cv2.waitKey(0)
+    # apply median blur to remove noise
+    equation = cv2.medianBlur(equation,3)
 
     # Detect characters
     intensity_dist = np.sum(equation, axis=0)

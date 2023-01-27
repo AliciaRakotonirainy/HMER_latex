@@ -8,6 +8,7 @@ import json
 from src.features.cosim import compute_mean_filters, cosine_sim
 from src.features.signature import compute_angles_and_distances, compute_signature, make_ref_if_not_exists
 from src.preprocessing.preprocess import extract_characters
+from src.utils.make_handwritten_dataset import make_handwritten_dataset
 
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
@@ -17,6 +18,7 @@ import logging
 from src.utils.constants import *
 
 import logging
+from Levenshtein import distance as levenshtein_distance
 
 logger = logging.root
 logFormatter = logging.Formatter('{relativeCreated:12.0f}ms {levelname:5s} [{filename}] {message:s}', style='{')
@@ -31,6 +33,7 @@ class FinalClassifier(object):
         self.train_labels_path = TRAIN_LABELS_ISOLATED_SYMBOLS
 
         self._trained = False
+        self._handcrafted_images = True
 
         self.load_features()
         self.split_train_test(test_size)
@@ -55,12 +58,13 @@ class FinalClassifier(object):
         return balanced_train
 
 
-    def load_features(self, force_features_computation=True):
+    def load_features(self, force_features_computation=False):
 
         if os.path.exists(self.train_features_path) and not force_features_computation:
             print("Training set features already computed: loading features...")
             self.full_train_features = pd.read_csv(self.train_features_path, header=0, index_col=0)
             self.y_train = pd.read_csv(self.train_labels_path, header=0, index_col=0)
+            print("Training set features loaded!")
             return
 
         # load whole trainset of isolated symbols
@@ -115,10 +119,13 @@ class FinalClassifier(object):
                 ## Signature
 
                 # read angles and corresponding distances for this reference image
-                angles_ref = pd.read_csv(OUTPUT_DIR + "reference/angles_" + ref_path[:-4])
-                distances_ref = pd.read_csv(OUTPUT_DIR + "reference/distances_" + ref_path[:-4])
+                angles_ref = pd.read_csv(OUTPUT_DIR + "reference/angles_" + ref_path[:-4], index_col=0)
+                distances_ref = pd.read_csv(OUTPUT_DIR + "reference/distances_" + ref_path[:-4], index_col=0)
 
-                signature = compute_signature(angles, distances, angles_ref, distances_ref)
+                if angles is None:
+                    signature = -1
+                else:
+                    signature = compute_signature(angles, distances, angles_ref, distances_ref)
                 signature_features.append(pd.Series([signature], index=["AREA_" + ref_path[:-4]]))
             
             cosim_features = pd.concat(cosim_features)
@@ -167,7 +174,7 @@ class FinalClassifier(object):
 
         return result
 
-    def init_classifier(self, tune_xgb = True):
+    def init_classifier(self, tune_xgb = False):
         """Initiates the XGBoost classifier.
         """
         logger.info('Starting XGB tuning')
@@ -248,10 +255,13 @@ class FinalClassifier(object):
                 ## Signature
 
                 # read angles and corresponding distances for this reference image
-                angles_ref = pd.read_csv(OUTPUT_DIR + "reference/angles_" + ref_path[:-4])
-                distances_ref = pd.read_csv(OUTPUT_DIR + "reference/distances_" + ref_path[:-4])
+                angles_ref = pd.read_csv(OUTPUT_DIR + "reference/angles_" + ref_path[:-4], index_col=0)
+                distances_ref = pd.read_csv(OUTPUT_DIR + "reference/distances_" + ref_path[:-4], index_col=0)
 
-                signature = compute_signature(angles, distances, angles_ref, distances_ref)
+                if angles is None:
+                    signature = -1
+                else:
+                    signature = compute_signature(angles, distances, angles_ref, distances_ref)
                 signature_features.append(pd.Series([signature], index=["AREA_" + ref_path[:-4]]))
             
             cosim_features = pd.concat(cosim_features)
@@ -265,29 +275,63 @@ class FinalClassifier(object):
         predicted_idx_characters = self.trained_model.predict(xgboost.DMatrix(characters_features))
         predicted_idx_characters = predicted_idx_characters.round(0).astype(int)
 
-        print("PREDICTED CHARACTERS :")
         predicted_characters = []
         for id in predicted_idx_characters:
-            print(one_hot_classes.iloc[id,0])
             predicted_characters.append(one_hot_classes.iloc[id,0])
 
-        return predicted_characters
+        return predicted_characters, predicted_idx_characters
+
+
+
+    def pipeline_evaluation(self, n_images = 30, n_symb_per_eq = 9):
+        if self._handcrafted_images == False:
+            make_handwritten_dataset(n_images, n_symb_per_eq)
+            self._handcrafted_images = True
+
+        one_hot_classes = pd.read_table(CLASSES_FILE, header=None)
+
+        all_handcrafted_files = os.listdir(HANDCRAFTED_EQ_DIR)
+        all_handcrafted_labels_files = pd.read_csv(HANDCRAFTED_EQ_DIR + "handcrafted_img_labels.csv", header=0, index_col=0)
+
+        non_correctly_extracted = 0
+        correctly_extracted = 0 # we allow for +3 false characters
+        correctly_classified_char = 0
+
+        mean_edit_dist = 0
+
+        print("Beginning pipeline evaluation...")
+        for i, file in enumerate(all_handcrafted_files):
+            if file[-4:] == ".png":
+                equation = cv2.imread(HANDCRAFTED_EQ_DIR + file)
+                label = all_handcrafted_labels_files.iloc[i,:]
+                predicted_characters, predicted_idx_characters = self.predict(equation, one_hot_classes=one_hot_classes)
+                
+                # if we don't have extracted the same number of characters as in the generated image
+                if len(predicted_idx_characters) > n_symb_per_eq + 3:
+                    non_correctly_extracted += 1
+                else:
+                    correctly_extracted += 1
+                    mean_edit_dist += levenshtein_distance(predicted_idx_characters, label)
+
+                    for i_char in range(min(n_symb_per_eq, len(predicted_idx_characters))):
+                        if predicted_idx_characters[i_char] == label[i_char]:
+                             correctly_classified_char += 1
+        correctly_classified_char = correctly_classified_char / (correctly_extracted*n_symb_per_eq)
+        mean_edit_dist = mean_edit_dist/correctly_extracted
+        print(f"Mean Levenshtein edit distance : {mean_edit_dist}")
+        print(f"Percentage of correctly extracted equations : {correctly_extracted / (correctly_extracted + non_correctly_extracted)}")
+        print(f"Percentage of correctly classified characters when correctly extracted : {correctly_classified_char}")
+        
 
 
 def main():
     final_xgboost = FinalClassifier()
+    final_xgboost.pipeline_evaluation()
 
     # For now, we make the prediction only on 1 equation. We will have to do it for more 
     # if we want to compute the accuracy of the whole model
 
-    # load unprocessed equation img
-    equation = cv2.imread(HANDCRAFTED_EQ_DIR + "equation_1.jpg")
-
-    # load file giving the correspondance between one_hot_encoding and label
-    one_hot_classes = pd.read_table(CLASSES_FILE, header=None)
-    prediction = final_xgboost.predict(equation, one_hot_classes=one_hot_classes)
-    prediction = pd.DataFrame(prediction)
-    prediction.to_csv(OUTPUT_DIR + "prediction.csv")
+    
 
 if __name__ == '__main__':
     main()

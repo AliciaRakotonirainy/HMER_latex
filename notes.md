@@ -36,3 +36,27 @@ Code Im to Latex (based on above dataset) :
 https://github.com/harvardnlp/im2markup
 
 Dans ce papier : https://shchae7.github.io/pdfs/handwritten-math-formula-recogntion.pdf Ils créent leur propre dataset en ajoutant un fond derrière les images
+
+## Historique
+
+sur git, commit 'adding isolated symbols features, 8500 samples' : 
+STANDARD_SHAPE = (50,50)
+FILTER_SIZE = 5
+Cosim et area
+
+sur bentley, lancé vers 22h45 26/01/23 (train_features_filters10_cosim.csv)
+STANDARD_SHAPE = (50,50)
+FILTER_SIZE = 10
+Cosim et area
+=> prediction : 0 4 1 4 1 0 3 0
+
+en local, lancé vers 22h48 26/01/23 (train_features_FS10_SS100_cosim.csv) :
+STANDARD_SHAPE = (100,100)
+FILTER_SIZE = 10
+Cosim et area
+=> prediction : 0 4 9 2 1 0 = 0 2
+
+sur bentley, lancé à 23h43 26/01/23 (train_features_FS5_filters5_l2.csv) : 
+SS = (50,50)
+FS = 10
+l2 et area

@@ -24,7 +24,10 @@ def compute_angles_and_distances(character, save_path_angles = None, save_path_d
 
     # Extract largest blob
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    largest_contour = max(contours, key=cv2.contourArea)
+    try:
+        largest_contour = max(contours, key=cv2.contourArea)
+    except:
+        return None, None
     largest_contour = np.squeeze(largest_contour)
 
     # compute centroid
@@ -45,8 +48,14 @@ def compute_angles_and_distances(character, save_path_angles = None, save_path_d
         plt.show()
 
     ## compute distance from centroid
-    x = largest_contour[:, 0]
-    y = largest_contour[:, 1]
+    
+    
+    try:
+        x = largest_contour[:, 0] 
+        y = largest_contour[:, 1]
+    except:
+        x = largest_contour[0]
+        y = largest_contour[1]
     distances = np.sqrt((x - cX) ** 2 + (y - cY) ** 2)
 
     # scale distances so that the maximal distance is 1
@@ -150,7 +159,10 @@ def compute_signature(angles, distances, angles_ref, distances_ref, display=Fals
 
     # Compute the difference between reference signature and handwritten character signature
     # The higher the distance, the most different the 2 symbols are
-    area = similaritymeasures.area_between_two_curves(signature, signature_ref)
+    try:
+        area = similaritymeasures.area_between_two_curves(signature, signature_ref)
+    except:
+        area = -1
 
     return area
 

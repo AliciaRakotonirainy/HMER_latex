@@ -9,7 +9,7 @@ REF_DIR = DATA_DIR + "references/"
 ## FILES
 CLASSES_FILE = DATA_DIR + "isolated_symbols/one_hot_classes.txt"
 TRAINSET_ISOLATED_SYMBOLS = DATA_DIR + "isolated_symbols/train.pickle"
-TRAIN_FEATURES_ISOLATED_SYMBOLS = OUTPUT_DIR + "isolated_symbols/train_features_filter10_cosim.csv"
+TRAIN_FEATURES_ISOLATED_SYMBOLS = OUTPUT_DIR + "isolated_symbols/train_features.csv"
 TRAIN_LABELS_ISOLATED_SYMBOLS = OUTPUT_DIR + "isolated_symbols/train_labels.csv"
 ALL_CLASSES_FILE = "all_classes.txt"
 
@@ -28,9 +28,9 @@ XGB_PARAM_SEARCH = {
     'colsample_bytree': [0.01, 0.2, 0.5]
 }
 XGB_DEFAULT_PARAM_TO_SEARCH = {
-    'max_depth': 4,
-    'learning_rate': 0.1,
-    'colsample_bytree': 0.8,
+    'max_depth': 6,
+    'learning_rate': 0.3,
+    'colsample_bytree': 0.5,
 }
 XGB_ADDITIONNAL_PARAM = {
     'objective': 'multi:softmax',

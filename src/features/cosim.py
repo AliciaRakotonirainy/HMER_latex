@@ -46,10 +46,16 @@ def cosine_sim(features1, features2):
         cos_sim = np.dot(features1, features2) / (np.linalg.norm(features1) * np.linalg.norm(features2))
     return cos_sim
 
+def l2_dist(features1, features2):
+    return np.linalg.norm(features1 - features2)
 
 def ready_for_similarity(data):
     """Preprocess array to be ready for the similarity computation."""
-    data = cv2.resize(data, STANDARD_SHAPE)
+    if data.shape[0] != 0:
+        data = cv2.resize(data, STANDARD_SHAPE)
+    else:
+        # if the data is empty, in order not to throw an error, make it 1 pixel white
+        data = np.array([[255]])
     final_data = np.zeros(shape=data.shape, dtype=float)
     mask = data > 128
     final_data[mask] = -1
