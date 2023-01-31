@@ -60,3 +60,8 @@ sur bentley, lancé à 23h43 26/01/23 (train_features_FS5_filters5_l2.csv) :
 SS = (50,50)
 FS = 10
 l2 et area
+0 2 9 4 1 0 = 0 2
+
+## Comment réaliser l'évaluation ??
+
+Il faudrait créer un dataset avec que des 

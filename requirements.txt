@@ -1,10 +1,10 @@
 pandas
 numpy
 os
-cv2
+opencv
 tqdm
 json
-sklearn
+scikit-learn
 xgboost
 logging
 matplotlib
